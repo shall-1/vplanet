@@ -67,6 +67,9 @@
 #define MEARTH 5.972186e24     // Earth's mass; Prsa et al. 2016
 #define MSUN 1.988416e30       // Sun's mass; Prsa et al. 2016
 #define RSUN 6.957e8           // Sun's radius; Prsa et al. 2016
+#define TEFFSUN 5770           //Sun's effective temperature
+#define PERIODSUN 2353252      //Sun's rotation period; 27.24 days; Johnstone et al. 2021 Note: C&S use 25.3d
+#define ROSSBYSUN  1.960       //Sun's Rossby Number, Cranmer&Saar 2011
 #define YEARSEC 3.15576e7      // Seconds per year
 #define DAYSEC 86400           // Seconds per day
 #define REARTH 6.3781e6        // Earth's Equatorial Radius; Prsa et al. 2016
@@ -615,6 +618,12 @@ struct BODY {
   int bEvolveRG; /**< Whether or not to evolve radius of gyration? Defaults to 0
                   */
 
+
+  double dRossbySat;
+  double dR_xSat;
+  double dJohnstoneBeta1;
+  double dJohnstoneBeta2;
+  
   /* POISE parameters */
   int bPoise; /**< Apply POISE module? */
 

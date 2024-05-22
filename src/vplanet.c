@@ -58,7 +58,7 @@ int main_impl(int argc, char *argv[]) {
   FILES files;
   SYSTEM system;
   char infile[NAMELEN];
-  fnReadOption fnRead[MODULEOPTEND]; // XXX Pointers?
+  fnReadOption fnRead[MODULEOPTEND]; 
   fnWriteOutput fnWrite[MODULEOUTEND];
   fnUpdateVariable ***fnUpdate;
   fnIntegrate fnOneStep;

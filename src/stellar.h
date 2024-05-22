@@ -27,12 +27,19 @@
 #define ROSSBYCRIT                                                             \
   2.08 /**< Critical Rossby number above which magnetic braking shuts off      \
           according to van Saders+2018 */
+
+
+
 #define STELLAR_MODEL_NONE 0
 #define STELLAR_MODEL_BARAFFE 1
 #define STELLAR_MODEL_REINERS 2
 #define STELLAR_MODEL_CONST 3
 #define STELLAR_MODEL_RIBAS 4
 #define STELLAR_MODEL_PROXIMACEN 5
+#define STELLAR_MODEL_JOHNSTONE  6
+
+
+
 
 #define STELLAR_DJDT_NONE                                                      \
   0 /**< No stellar angular momentum loss via magnetic braking */
@@ -63,6 +70,13 @@
 
 #define OPT_EVOVLERG                                                           \
   1522 /**< Whether or not to evolve stellar radius of gyration */
+
+#define OPT_ROSSBYSAT 1523
+#define OPT_R_XSAT     1524
+#define OPT_JOHNSTONEBETA1  1525
+#define OPT_JOHNSTONEBETA2  1526
+
+/*SSS*/
 
 /* Halt Functions */
 #define STELLARHALTSYSEND 5
@@ -107,6 +121,7 @@ void InitializeVplanetStellar(CONTROL *, MODULE *);
 void fnPropsAuxStellar(BODY *, EVOLVE *, IO *, UPDATE *, int);
 void VerifyHaltStellar(BODY *, CONTROL *, OPTIONS *, int, int *);
 void VerifyRotationStellar(BODY *, CONTROL *, OPTIONS *, char[], int);
+//void VerifyXUV(BODY * ,CONTROL *, FILES *, OPTIONS *,int *); /SSS
 
 /* Update functions */
 void InitializeUpdateStellar(BODY *, UPDATE *, int);
@@ -170,8 +185,15 @@ double fdDEDtRotRadGyraStellar(BODY *, SYSTEM *, int *);
 double fdDEDtRotBrakeStellar(BODY *, SYSTEM *, int *);
 double fdDEDtStellar(BODY *, SYSTEM *, int *);
 double fdCranmerSaar2011TauCZ(double);
+double fdRossbyNumber(BODY *, int); 
+double fdR_xSat(BODY *, int);
+double fdJohnstoneBeta1(BODY *, int);
+double fdJohnstoneBeta2(BODY *, int);
+
 
 /* Dummy functions */
 double fdSurfEnFluxStellar(BODY *, SYSTEM *, UPDATE *, int, int);
+
+
 
 /* @endcond */
