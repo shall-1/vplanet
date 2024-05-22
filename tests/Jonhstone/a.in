@@ -1,5 +1,5 @@
 # Star
-sName               c		                  # Body's name
+sName               a		                  # Body's name
 saModules	    stellar                     # Modules to apply, exact spelling required
 
 # Physical Parameters
