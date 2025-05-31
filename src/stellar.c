@@ -2677,19 +2677,16 @@ double fdLEUV( BODY *body, int iBody) {
   
    if (body[iBody].iLEUVModel == EUV_MODEL_SANZFORCADA2025){
     //double m4,k4;
-    //m4=0.841; //"constant 1"
-    //k4=5.63176; //"constant 2"
+    //m4=0.821; //"constant 1"
+    //k4=5.631; //"constant 2"
     double dEUVSanzForcada = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
 
     return dEUVSanzForcada; 
     } 
 
 
+
    return -1;
-
-
-
-  
    
 }
 
