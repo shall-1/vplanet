@@ -2669,9 +2669,9 @@ double fdLEUV( BODY *body, int iBody) {
     //double m3,k3;
     //m3=0.860; //"constant 1"
     //k3=4.80; //"constant 2"
-    double dEUVSanzForcada = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
+    double dEUVSanzForcada2011 = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
 
-    return dEUVSanzForcada; 
+    return dEUVSanzForcada2011; 
    }
 
   
@@ -2679,9 +2679,9 @@ double fdLEUV( BODY *body, int iBody) {
     //double m4,k4;
     //m4=0.821; //"constant 1"
     //k4=5.631; //"constant 2"
-    double dEUVSanzForcada = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
+    double dEUVSanzForcada2025 = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
 
-    return dEUVSanzForcada; 
+    return dEUVSanzForcada2025; 
     } 
 
 
