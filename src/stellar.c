@@ -740,7 +740,7 @@ void InitializeOptionsStellar(OPTIONS *options, fnReadOption fnRead[]) {
   fvFormattedString(&options[OPT_SANZFORCADACON2].cDescr, "Sanz-Forcada EUV Constant 2");
   fvFormattedString(&options[OPT_SANZFORCADACON2].cDefault, "5.63176");
   fvFormattedString(&options[OPT_SANZFORCADACON2].cDimension, "nd"); //non dimensional
-  options[OPT_SANZFORCADACON2].dDefault   = 5.63176;
+  options[OPT_SANZFORCADACON2].dDefault   = 28.16;
   options[OPT_SANZFORCADACON2].iType      = 2; //tells is a double
   options[OPT_SANZFORCADACON2].bMultiFile = 1; //exist in multiple files?
   fnRead[OPT_SANZFORCADACON2]             = &ReadSanzForcadaCon2; //pointers again
@@ -2678,8 +2678,9 @@ double fdLEUV( BODY *body, int iBody) {
    if (body[iBody].iLEUVModel == EUV_MODEL_SANZFORCADA2025){
     //double m4,k4;
     //m4=0.821; //"constant 1"
-    //k4=5.631; //"constant 2"
-    double dEUVSanzForcada2025 = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
+    //k4=28.16; //"constant 2"
+   // double dEUVSanzForcada2025 = (pow(10.,(body[iBody].dSanzForcadaCon2))*pow((dXRay*1e7),(body[iBody].dSanzForcadaCon1)))*1e-7;
+   double dEUVSanzForcada2025 =(pow((dXRay*1e7)/(pow(10.,27.44)),body[iBody].dSanzForcadaCon1))*(pow(10.,(body[iBody].dSanzForcadaCon2)))*1e-7;
 
     return dEUVSanzForcada2025; 
     } 
