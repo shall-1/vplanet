@@ -1123,7 +1123,8 @@ void fvCumulativeXUVFlux(BODY *body,EVOLVE *evolve,SYSTEM *system,double dDt,int
     }
   } else {
     if (body[iBody].bCalcFXUV) {
-      body[iBody].dFXUV = fdXUVFlux(body, iBody);
+      body[iBody].dFXUVLast = fdXUVFlux(body, iBody);
+    
     }
     body[iBody].dFXUVCumulative += fdTrapezoidalArea(body[iBody].dFXUV,body[iBody].dFXUVLast,dDt);
     body[iBody].dFXUVLast = body[iBody].dFXUV;
