@@ -36,13 +36,14 @@
           according to van Saders+2018 */
 #define STELLAR_MODEL_NONE 0
 #define STELLAR_MODEL_BARAFFE 1
+#define STELLAR_MODEL_AMARD 12
 #define STELLAR_MODEL_REINERS 2
 #define STELLAR_MODEL_CONST 3
 #define STELLAR_MODEL_RIBAS 4
 #define STELLAR_MODEL_PROXIMACEN 5
 #define STELLAR_MODEL_SINEWAVE 6
-#define STELLAR_MODEL_JOHNSTONE  7
-#define STELLAR_MODEL_CALCULATED 8 
+#define STELLAR_MODEL_JOHNSTONE  10
+#define STELLAR_MODEL_CALCULATED 11 
 
 #define EUV_MODEL_NONE        0
 #define EUV_MODEL_SANZFORCADA2011 1
@@ -100,7 +101,8 @@
 
 
 #define OPT_HALTENDBARAFFEFGRID                                                \
-  1516 /**< Halt when we reach the end of the Baraffe grid? */
+  1516 /**< Halt when we reach the end of the Baraffe grid? */  
+#define OPT_HALTENDAMARDGRID 1531 /**Hald when reach end of Amard grid */
 #define OPT_SATXUVTIME 1517 /**< XUV saturation time */
 #define OPT_XUVBETA 1518    /**< XUV power law decay exponent */
 #define OPT_ROSSBYCUT 1519  /** Whether or not to apply Rossby cut to dJ/dt */
@@ -187,6 +189,9 @@ void ReadOptionsStellar(BODY *, CONTROL *, FILES *, OPTIONS *, SYSTEM *,
 
 int fbHaltEndBaraffeGrid(BODY *, EVOLVE *, HALT *, IO *, UPDATE *,
                          fnUpdateVariable ***, int);
+
+int fbHaltEndAmardGrid(BODY *, EVOLVE *, HALT *, IO *, UPDATE *,
+                         fnUpdateVariable ***, int);
 void CountHaltsStellar(HALT *, int *);
 
 /* Verify Functions */
@@ -250,12 +255,15 @@ void fnForceBehaviorStellar(BODY *, MODULE *, EVOLVE *, IO *, SYSTEM *,
                             UPDATE *, fnUpdateVariable ***fnUpdate, int, int);
 double fdLuminosity(BODY *, SYSTEM *, int *);
 double fdLuminosityFunctionBaraffe(double, double);
+double fdLuminosityFunctionAmard(double, double);
 double fdLuminosityFunctionProximaCen(double, double);
 double fdLuminosityFunctionSineWave(BODY *, int);
 double fdRadius(BODY *, SYSTEM *, int *);
 double fdRadGyra(BODY *, SYSTEM *, int *);
 double fdRadiusFunctionBaraffe(double, double);
 double fdRadGyraFunctionBaraffe(double, double);
+double fdRadiusFunctionAmard(double, double);
+double fdRadGyraFunctionAmard(double, double);
 double fdRadiusFunctionProximaCen(double, double);
 double fdDRotRateDt(BODY *, SYSTEM *, int *);
 double fdDRotRateDtCon(BODY *, SYSTEM *, int *);
@@ -263,6 +271,7 @@ double fdDRotRateDtRadGyra(BODY *, SYSTEM *, int *);
 double fdDRotRateDtMagBrake(BODY *, SYSTEM *, int *);
 double fdTemperature(BODY *, SYSTEM *, int *);
 double fdTemperatureFunctionBaraffe(double, double);
+double fdTemperatureFunctionAmard(double, double);
 double fdTemperatureFunctionProximaCen(double, double);
 double fdDJDtMagBrakingStellar(BODY *, SYSTEM *, int *);
 double fdDRadiusDtStellar(BODY *, SYSTEM *, int *);

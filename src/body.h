@@ -41,7 +41,8 @@
 #define METLEN 2
 #define TIMELEN 50
 
-// Constants/array lens for Baraffe model
+// Constants/array lens for Baraffe model 
+///SSS Also use these for the Amard model?
 #define STELLAR_T 1  // Effective Temperature
 #define STELLAR_L 2  // Luminosity
 #define STELLAR_R 3  // Radius
@@ -3759,6 +3760,9 @@ static double const daLopezRadius[MASSLEN][COMPLEN][FLUXLEN][METLEN][TIMELEN] =
 
 // Baraffe stellar evolution grid
 double fdBaraffe(int, double, double, int, int *);
+
+//Amard stellar evol grid
+double fdAmard(int, double, double, int, int *);
 
 /* @endcond */
 

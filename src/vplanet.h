@@ -1727,6 +1727,10 @@ struct HALT {
   int bEndBaraffeGrid; /***< Halt if we reached the end of the luminosity grid?
                         */
 
+  int bEndAmardGrid; /***< Halt if we reached the end of the luminosity grid?
+                        */
+
+
   /* THERMINT */
   double dMinTMan;  /**< Halt at this TMan */
   double dMinTCore; /**< Halt at this TCore */
