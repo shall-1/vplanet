@@ -24,6 +24,7 @@
 #define ATMESC_NONE 8      /**< Flag: No atmospheric escape */
 // XXX Change to LOPEZ12
 #define ATMESC_LOP12 9 /**< Flag: Lopez (2012) gaseous planet radius model */
+#define ATMESC_TANG25 14 //Tang (2025) planet radius model
 #define ATMESC_PROXCENB                                                        \
   10 /**< Flag: Proxima Centauri b gaseous planet radius model */
 #define ATMESC_LEHMER17                                                        \
@@ -253,6 +254,9 @@ double fdKTide(BODY *, IO *, int, int);
 void SetInitialEscapeRegime(BODY *, IO *, int);
 
 double fdLopez12EnvelopeMassFromMassRadiusAge(BODY *, SYSTEM *, UPDATE *,
+                                              double, int);
+
+double fdTang25EnvelopeMassFromMassRadiusAge(BODY *, SYSTEM *, UPDATE *,
                                               double, int);
 
 /* Dummy functions */

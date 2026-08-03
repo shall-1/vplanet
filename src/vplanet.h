@@ -1726,6 +1726,7 @@ struct HALT {
   /* STELLAR */
   int bEndBaraffeGrid; /***< Halt if we reached the end of the luminosity grid?
                         */
+  
 
   /* THERMINT */
   double dMinTMan;  /**< Halt at this TMan */

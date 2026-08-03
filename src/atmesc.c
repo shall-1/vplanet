@@ -1031,14 +1031,16 @@ void InitializeOptionsAtmEsc(OPTIONS *options, fnReadOption fnRead[]) {
                     "Gaseous Planet Radius Model");
   fvFormattedString(&options[OPT_PLANETRADIUSMODEL].cDefault, "NONE");
   fvFormattedString(&options[OPT_PLANETRADIUSMODEL].cValues,
-                    "LOPEZ12 PROXCENB LEHMER17 NONE.");
+                    "LOPEZ12 TANG25 PROXCENB LEHMER17 NONE.");
   options[OPT_PLANETRADIUSMODEL].iType      = 3;
   options[OPT_PLANETRADIUSMODEL].bMultiFile = 1;
   fnRead[OPT_PLANETRADIUSMODEL]             = &ReadPlanetRadiusModel;
   fvFormattedString(
         &options[OPT_PLANETRADIUSMODEL].cLongDescr,
         "If LOPEZ12 is selected, the planet radius will follow the model in\n"
-        "Lopez et al. (2012, ApJ, 761, 59). PROXCENB will use the model for\n"
+        "Lopez et al. (2012, ApJ, 761, 59). TANG25 will allow the radius \n"
+        "to follow the model Tang et al.(2025, 	arXiv:2410.21584).\n"
+        "PROXCENB will use the model for \n"
         "Proxima b in Barnes et al. (2016, arXiv:1608.06919). LEHMER17 is the\n"
         "Lehmer & Catling (2017, ApJ, 845, 130). NONE will cause the radius "
         "to\n"
@@ -1417,6 +1419,8 @@ void VerifyRadiusAtmEsc(BODY *body, CONTROL *control, OPTIONS *options,
           body[iBody].dMass, body[iBody].dEnvelopeMass / body[iBody].dMass, 1.,
           body[iBody].dAge, 0);
 
+  
+
     // If there is no envelope and Lopez Radius specified, use Sotin+2007
     // radius!
     if (body[iBody].dEnvelopeMass <= body[iBody].dMinEnvelopeMass) {
@@ -1438,6 +1442,20 @@ void VerifyRadiusAtmEsc(BODY *body, CONTROL *control, OPTIONS *options,
                iBody);
       }
     }
+
+  else if (body[iBody].iPlanetRadiusModel == ATMESC_TANG25) {
+    body[iBody].dRadius = fdTangRadius(
+          body[iBody].dMass, body[iBody].dEnvelopeMass / body[iBody].dMass, 1.,
+          body[iBody].dAge, 0);
+
+     if (options[OPT_RADIUS].iLine[iBody + 1] >= 0) {
+      // User specified radius, but we're reading it from the grid!
+      if (control->Io.iVerbose >= VERBINPUT) {
+        printf("INFO: Radius set for body %d, but this value will be computed "
+               "from the grid.\n",
+               iBody);
+      }
+
   } else if (body[iBody].iPlanetRadiusModel == ATMESC_PROXCENB) {
     body[iBody].dRadius =
           fdProximaCenBRadius(body[iBody].dEnvelopeMass / body[iBody].dMass,
@@ -1462,7 +1480,7 @@ void VerifyRadiusAtmEsc(BODY *body, CONTROL *control, OPTIONS *options,
         &update[iBody]
                .daDerivProc[update[iBody].iRadius]
                            [0]; // NOTE: This points to the VALUE of the radius
-}
+}}
 
 void EnvelopeLost(BODY *body, EVOLVE *evolve, IO *io, UPDATE *update,
                   fnUpdateVariable ***fnUpdate, int iBody) {
@@ -1480,6 +1498,8 @@ void EnvelopeLost(BODY *body, EVOLVE *evolve, IO *io, UPDATE *update,
            body[iBody].cName, evolve->dTime / (1e6 * YEARSEC));
     if (body[iBody].iPlanetRadiusModel == ATMESC_LOP12) {
       printf("Switching to Sotin+2007 model for solid planet radius.\n");
+    else if (body[iBody].iPlanetRadiusModel == ATMESC_TANG25) {
+      printf("Switching to Tang+2025 model for solid planet radius.\n"); 
     } else {
       printf("\n");
     }
@@ -1492,7 +1512,11 @@ void EnvelopeLost(BODY *body, EVOLVE *evolve, IO *io, UPDATE *update,
   if (body[iBody].iPlanetRadiusModel == ATMESC_LOP12) {
     body[iBody].dRadius = fdMassToRad_Sotin07(body[iBody].dMass);
   }
-}
+  // if using Tang+2025, set radius from that function/table
+  else if (body[iBody].iPlanetRadiusModel == ATMESC_TANG25) {
+    body[iBody].dRadius = fdMassTang(body[iBody].dMass);
+  }
+}}} 
 
 double fdAtmEscXi(BODY *body, int iBody) {
   double dXi =
@@ -2156,6 +2180,16 @@ void SetEnvelopeMassFromMassAndRadius(BODY *body, OPTIONS *options,
            dRatio =
             fdBrentQuadratic(body, system, update, dMinEnvFrac, dMaxEnvFrac,
                     &fdLopez12EnvelopeMassFromMassRadiusAge, iBody);
+          body[iBody].dEnvelopeMass = dRatio * body[iBody].dMass;
+    }
+  }
+  else if (body[iBody].iPlanetRadiusModel == ATMESC_TANG25) {
+    if (options[OPT_MASS].iLine[iBody + 1] >= 0 &&
+        options[OPT_RADIUS].iLine[iBody + 1] >= 0 &&
+        options[OPT_ENVELOPEMASS].iLine[iBody + 1] == -1) {
+           dRatio =
+            fdBrentQuadratic(body, system, update, dMinEnvFrac, dMaxEnvFrac,
+                    &fdTang25EnvelopeMassFromMassRadiusAge, iBody);
           body[iBody].dEnvelopeMass = dRatio * body[iBody].dMass;
     }
   }
@@ -4179,6 +4213,12 @@ double fdPlanetRadius(BODY *body, SYSTEM *system, int *iaBody) {
     } else {
       return body[iaBody[0]].dRadius;
     }
+    // sss Envelope uses tang25 models 
+  } else if (body[iaBody[0]].iPlanetRadiusModel == ATMESC_TANG25) {
+    return fdTangRadius(body[iaBody[0]].dEnvelopeMass /
+                                     body[iaBody[0]].dMass,
+                               body[iaBody[0]].dAge, body[iaBody[0]].dMass);
+  
   } else if (body[iaBody[0]].iPlanetRadiusModel == ATMESC_PROXCENB) {
     return fdProximaCenBRadius(body[iaBody[0]].dEnvelopeMass /
                                      body[iaBody[0]].dMass,
@@ -4553,5 +4593,14 @@ double fdLopez12EnvelopeMassFromMassRadiusAge(BODY *body, SYSTEM *system,
   double dRadius;
 
   dRadius = fdLopezRadius(body[iBody].dMass, dRatio, 1., body[iBody].dAge, 0);
+  return dRadius - body[iBody].dRadius;
+}
+
+double fdTang25EnvelopeMassFromMassRadiusAge(BODY *body, SYSTEM *system,
+                                              UPDATE *update, double dRatio,
+                                              int iBody) {
+  double dRadius;
+
+  dRadius = fdTangRadius(body[iBody].dMass, dRatio, 1., body[iBody].dAge, 0);
   return dRadius - body[iBody].dRadius;
 }

@@ -1185,6 +1185,139 @@ double fdLopezRadius(double dMass, double dComp, double dFlux, double dAge,
   return dRadius;
 }
 
+//** Planet radius evolution model from Tang et al 2025 */
+//**SSS Check these inputs later after foundation put */
+double fdTangRadius(double dMass, double dComp, double dFlux, double dAge,
+                     int iMetal) {
+  int m, c, f, t, z;
+  double dm, dc, df, dt;
+  double R000, R001, R010, R011, R100, R101, R110, R111;
+  double R00, R10, R01, R11;
+  double R0, R1;
+  double dMassEarth = dMass / MEARTH;
+  double dAgeYears  = dAge / YEARSEC;
+
+  /* We're not going to bother interpolating between metallicities. */
+  //**There are two different metallicities for the Tang models */
+  z = iMetal;
+
+  // Add a small tolerance
+  if ((dMassEarth / daTangMass[0] < 1)) {
+    /* Out of bounds, assuming it's OK to use min val */
+    dMassEarth = daTangMass[0];
+    m          = 0;
+  } else if ((dMassEarth / daTangMass[MASSLEN - 1] > 1)) {
+    /* Out of bounds, assuming it's OK to use max val */
+    dMassEarth = daTangMass[MASSLEN - 1];
+    m          = MASSLEN - 1;
+  } else {
+    /* Get index just below desired mass */
+    for (m = 0; m < MASSLEN - 1; m++) {
+      if (dMassEarth < daTangMass[m + 1]) {
+        break;
+      }
+    }
+  }
+  if (dComp < daTangComp[0]) {
+    /* Out of bounds, assuming it's OK to use min val */
+    dComp = daTangComp[0];
+    c     = 0;
+  } else if (dComp >= daTangComp[COMPLEN - 1]) {
+    /* Out of bounds, assuming it's OK to use max val */
+    dComp = daTangComp[COMPLEN - 1];
+    c     = COMPLEN - 1;
+  } else {
+    /* Get index just below desired composition */
+    for (c = 0; c < COMPLEN - 1; c++) {
+      if (dComp < daTangComp[c + 1]) {
+        break;
+      }
+    }
+  }
+  if (dFlux < daTangFlux[0]) {
+    /* Out of bounds, assuming it's OK to use min val */
+    dFlux = daTangFlux[0];
+    f     = 0;
+  } else if (dFlux >= daTangFlux[FLUXLEN - 1]) {
+    /* Out of bounds, assuming it's OK to use max val */
+    dFlux = daTangFlux[FLUXLEN - 1];
+    f     = FLUXLEN - 1;
+  } else {
+    /* Get index just below desired composition */
+    for (f = 0; f < FLUXLEN - 1; f++) {
+      if (dFlux < daTangFlux[f + 1]) {
+        break;
+      }
+    }
+  }
+  if (dAgeYears < daTangAge[0]) {
+    /* Out of bounds, assuming it's OK to use min val */
+    dAgeYears = daTangAge[0];
+    t         = 0;
+  } else if (dAgeYears >= daTangAge[TIMELEN - 1]) {
+    /* Out of bounds, assuming it's OK to use max val */
+    dAgeYears = daTangAge[TIMELEN - 1];
+    t         = TIMELEN - 1;
+  } else {
+    /* Get index just below desired time */
+    for (t = 0; t < TIMELEN - 1; t++) {
+      if (dAgeYears < daTangAge[t + 1]) {
+        break;
+      }
+    }
+  }
+  /* We now have the coordinates below our desired point.
+   * Let's use them to do a simple tetralinear interpolation.
+   * Adapted from the method described in
+   * http://en.wikipedia.org/wiki/Trilinear_interpolation */
+  if (m < MASSLEN - 1) {
+    dm = (dMassEarth - daTangMass[m]) / (daTangMass[m + 1] - daTangMass[m]);
+  } else {
+    dm = (dMassEarth - daTangMass[m]) / (daTangMass[m] - daTangMass[m - 1]);
+  }
+  if (c < COMPLEN - 1) {
+    dc = (dComp - daTangComp[c]) / (daTangComp[c + 1] - daTangComp[c]);
+  } else {
+    dc = (dComp - daTangComp[c]) / (daTangComp[c] - daTangComp[c - 1]);
+  }
+  if (f < FLUXLEN - 1) {
+    df = (dFlux - daTangFlux[f]) / (daTangFlux[f + 1] - daTangFlux[f]);
+  } else {
+    df = (dFlux - daTangFlux[f]) / (daTangFlux[f] - daTangFlux[f - 1]);
+  }
+  if (t < TIMELEN - 1) {
+    dt = (dAgeYears - daTangAge[t]) / (daTangAge[t + 1] - daTangAge[t]);
+  } else {
+    dt = (dAgeYears - daTangAge[t]) / (daTangAge[t + 1] - daTangAge[t]);
+  }
+  R000 = daTangRadius[m][c][f][z][t] * (1 - dm) +
+         daTangRadius[m + 1][c][f][z][t] * dm;
+  R001 = daTangRadius[m][c][f][z][t + 1] * (1 - dm) +
+         daTangRadius[m + 1][c][f][z][t + 1] * dm;
+  R010 = daTangRadius[m][c][f + 1][z][t] * (1 - dm) +
+         daTangRadius[m + 1][c][f + 1][z][t] * dm;
+  R011 = daTangRadius[m][c][f + 1][z][t + 1] * (1 - dm) +
+         daTangRadius[m + 1][c][f + 1][z][t + 1] * dm;
+  R100 = daTangRadius[m][c + 1][f][z][t] * (1 - dm) +
+         daTangRadius[m + 1][c + 1][f][z][t] * dm;
+  R101 = daTangRadius[m][c + 1][f][z][t + 1] * (1 - dm) +
+         daTangRadius[m + 1][c + 1][f][z][t + 1] * dm;
+  R110 = daTangRadius[m][c + 1][f + 1][z][t] * (1 - dm) +
+         daTangRadius[m + 1][c + 1][f + 1][z][t] * dm;
+  R111 = daTangRadius[m][c + 1][f + 1][z][t + 1] * (1 - dm) +
+         daTangRadius[m + 1][c + 1][f + 1][z][t + 1] * dm;
+  R00 = R000 * (1 - dc) + R100 * dc;
+  R10 = R010 * (1 - dc) + R110 * dc;
+  R01 = R001 * (1 - dc) + R101 * dc;
+  R11 = R011 * (1 - dc) + R111 * dc;
+  R0  = R00 * (1 - df) + R10 * df;
+  R1  = R01 * (1 - df) + R11 * df;
+  double dRadius = (R0 * (1 - dt) + R1 * dt) * REARTH;
+  return dRadius;
+}
+
+
+
 /**
   Dot product of two vectors
 
