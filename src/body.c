@@ -1458,112 +1458,174 @@ double fdBaraffe(int iParam, double A, double M, int iOrder, int *iError) {
   }
 }
 
-//*SSS Start helper functions for the Amard grids. I think we will also need one for metallicity? 
-// will probably come back to this to fix it, although should be able to just call 
-//for metallicity and set dummy variable??? i think that is already done and then 
-//just call the function for metallicity 
+//*SSS Start helper functions for the Amard grid. Amard et al. (2019) tracks
+// span mass, age, AND metallicity, so (unlike Baraffe) we need a full
+// tricubic -- not just bicubic -- interpolation.
 
 /**
-  Helper function for interpolating Amard grid
+  Helper function for interpolating the Amard grid
 
-  What are the arguments?
+  1D cubic interpolation (Catmull-Rom form) over a 4-point stencil
+  (p0, p1, p2, p3), evaluated at normalized distance dt across the
+  [p1, p2] interval. This is mathematically equivalent to a Hermite cubic
+  whose slopes are estimated via central differences -- the same
+  derivative approximation used in fdBaraffeBiCubic()/above -- just
+  applied one dimension at a time. Chaining this along each of the three
+  grid axes (metallicity, then mass, then age) below builds up a full
+  tricubic interpolation without needing to construct/invert the 64x64
+  tricubic coefficient matrix that a direct 3D extension of
+  fdBaraffeBiCubic() would require.
+
+  @param p0 Function value one grid point below the interval
+  @param p1 Function value at the lower bound of the interval
+  @param p2 Function value at the upper bound of the interval
+  @param p3 Function value one grid point above the interval
+  @param dt Normalized distance across the interval, in [0, 1]
+
+  @return The interpolated value
 */
-double fdAmardBiLinear(int iMLEN, int iALEN,
-                         double const data[STELLAR_BAR_MLEN][STELLAR_BAR_ALEN],
-                         int xi, int yi, double dx, double dy) {
-  // Linearly interpolate over data, given indices of lower bounds on grid xi,
-  // yi and normalized distances to the interpolation point dx, dy.
-  double C0, C1, C;
-  if (dx == 0) {
-    C0 = data[xi][yi];
-    C1 = data[xi][yi + 1];
-  } else {
-    C0 = data[xi][yi] * (1 - dx) + data[xi + 1][yi] * dx;
-    C1 = data[xi][yi + 1] * (1 - dx) + data[xi + 1][yi + 1] * dx;
-  }
-  if (dy == 0) {
-    C = C0;
-  } else {
-    C = C0 * (1 - dy) + C1 * dy;
-  }
-  return C;
+double fdCubic1D(double p0, double p1, double p2, double p3, double dt) {
+  double dA0, dA1, dA2, dA3;
+
+  dA0 = p1;
+  dA1 = 0.5 * (p2 - p0);
+  dA2 = p0 - 2.5 * p1 + 2.0 * p2 - 0.5 * p3;
+  dA3 = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
+
+  return dA0 + dt * (dA1 + dt * (dA2 + dt * dA3));
 }
 
 /**
-  Helper function for interpolating Amard grid
+  Helper function for interpolating the Amard grid
 
-  What are the arguments?
+  Trilinear interpolation over the mass-age-metallicity grid, given
+  indices of the lower bounds on the grid (xi, yi, zi) and normalized
+  distances to the interpolation point (dx, dy, dz). Used both for
+  iOrder = 1 and as the fallback when a tricubic stencil hits a NaN.
+
+  @param iMLEN Number of mass grid points
+  @param iALEN Number of age grid points
+  @param iZLEN Number of metallicity grid points
+  @param data The 3D (mass x age x metallicity) data grid
+  @param xi Index of the grid point below the interpolation mass
+  @param yi Index of the grid point below the interpolation age
+  @param zi Index of the grid point below the interpolation metallicity
+  @param dx Normalized distance to the interpolation point in mass
+  @param dy Normalized distance to the interpolation point in age
+  @param dz Normalized distance to the interpolation point in metallicity
+
+  @return The interpolated value
 */
-double fdAmardBiCubic(int iMLEN, int iALEN,
-                        double const data[STELLAR_BAR_MLEN][STELLAR_BAR_ALEN],
-                        int xi, int yi, double dx, double dy) {
-  double dvCoeff[16];
-  int j, k;
-  int ijkn      = 0;
-  double dypow  = 1;
-  double result = 0;
+double fdAmardTriLinear(
+      int iMLEN, int iALEN, int iZLEN,
+      double const data[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN],
+      int xi, int yi, int zi, double dx, double dy, double dz) {
+  double C00, C01, C10, C11, C0, C1;
 
-  // Linear algebra time!
-  // Adapted from http://en.wikipedia.org/wiki/Bicubic_interpolation
-  double dvDeriv[16] = {// values of the function at each corner
-                        data[xi][yi], data[xi + 1][yi], data[xi][yi + 1],
-                        data[xi + 1][yi + 1],
+  C00 = data[xi][yi][zi] * (1 - dx) + data[xi + 1][yi][zi] * dx;
+  C10 = data[xi][yi + 1][zi] * (1 - dx) + data[xi + 1][yi + 1][zi] * dx;
+  C01 = data[xi][yi][zi + 1] * (1 - dx) + data[xi + 1][yi][zi + 1] * dx;
+  C11 = data[xi][yi + 1][zi + 1] * (1 - dx) +
+        data[xi + 1][yi + 1][zi + 1] * dx;
 
-                        // values of df/dx at each corner.
-                        0.5 * (data[xi + 1][yi] - data[xi - 1][yi]),
-                        0.5 * (data[xi + 2][yi] - data[xi][yi]),
-                        0.5 * (data[xi + 1][yi + 1] - data[xi - 1][yi + 1]),
-                        0.5 * (data[xi + 2][yi + 1] - data[xi][yi + 1]),
+  C0 = C00 * (1 - dy) + C10 * dy;
+  C1 = C01 * (1 - dy) + C11 * dy;
 
-                        // values of df/dy at each corner.
-                        0.5 * (data[xi][yi + 1] - data[xi][yi - 1]),
-                        0.5 * (data[xi + 1][yi + 1] - data[xi + 1][yi - 1]),
-                        0.5 * (data[xi][yi + 2] - data[xi][yi]),
-                        0.5 * (data[xi + 1][yi + 2] - data[xi + 1][yi]),
-
-                        // values of d2f/dxdy at each corner.
-                        0.25 * (data[xi + 1][yi + 1] - data[xi - 1][yi + 1] -
-                                data[xi + 1][yi - 1] + data[xi - 1][yi - 1]),
-                        0.25 * (data[xi + 2][yi + 1] - data[xi][yi + 1] -
-                                data[xi + 2][yi - 1] + data[xi][yi - 1]),
-                        0.25 * (data[xi + 1][yi + 2] - data[xi - 1][yi + 2] -
-                                data[xi + 1][yi] + data[xi - 1][yi]),
-                        0.25 * (data[xi + 2][yi + 2] - data[xi][yi + 2] -
-                                data[xi + 2][yi] + data[xi][yi])};
-
-  fvMatrixVectorMult(STELLAR_BICUBIC_MATRIX, dvDeriv, dvCoeff);
-  dypow = 1;
-  for (j = 0; j < 4; ++j) {
-    result +=
-          dypow * (dvCoeff[ijkn] +
-                   dx * (dvCoeff[ijkn + 1] +
-                         dx * (dvCoeff[ijkn + 2] + dx * dvCoeff[ijkn + 3])));
-    ijkn += 4;
-    dypow *= dy;
-  }
-  return result;
+  return C0 * (1 - dz) + C1 * dz;
 }
 
 /**
-  Helper function for interpolating Amard grid
+  Helper function for interpolating the Amard grid
 
-  What are the arguments?
+  Tricubic interpolation over the mass-age-metallicity grid. Uses the
+  4x4x4 stencil of grid points surrounding the interpolation cell
+  (xi-1..xi+2, yi-1..yi+2, zi-1..zi+2, mirroring the xi-1..xi+2 stencil
+  fdBaraffeBiCubic() uses in 2D): first reduces along the metallicity
+  axis with 16 calls to fdCubic1D(), then along the mass axis with 4
+  more, then finally along the age axis with 1 last call.
 
+  @param iMLEN Number of mass grid points
+  @param iALEN Number of age grid points
+  @param iZLEN Number of metallicity grid points
+  @param data The 3D (mass x age x metallicity) data grid
+  @param xi Index of the grid point below the interpolation mass
+  @param yi Index of the grid point below the interpolation age
+  @param zi Index of the grid point below the interpolation metallicity
+  @param dx Normalized distance to the interpolation point in mass
+  @param dy Normalized distance to the interpolation point in age
+  @param dz Normalized distance to the interpolation point in metallicity
+
+  @return The interpolated value
 */
-double fdAmardInterpolate(int iMLEN, int iALEN, double const xarr[STELLAR_BAR_MLEN],
-                     double const yarr[STELLAR_BAR_ALEN],
-                     double const data[STELLAR_BAR_MLEN][STELLAR_BAR_ALEN],
-                     double M, double A, int iOrder, int *iError) {
-  double dx, dy;
-  int xi, yi;
-  int dxi, dyi;
+double fdAmardTriCubic(
+      int iMLEN, int iALEN, int iZLEN,
+      double const data[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN],
+      int xi, int yi, int zi, double dx, double dy, double dz) {
+  int i, j;
+  double dvReduced[4][4];
+  double dvColumn[4];
+
+  // Reduce along metallicity (z) at each of the 4x4 mass-age stencil points
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < 4; j++) {
+      dvReduced[i][j] = fdCubic1D(
+            data[xi - 1 + i][yi - 1 + j][zi - 1],
+            data[xi - 1 + i][yi - 1 + j][zi],
+            data[xi - 1 + i][yi - 1 + j][zi + 1],
+            data[xi - 1 + i][yi - 1 + j][zi + 2], dz);
+    }
+  }
+
+  // Reduce along mass (x) for each of the 4 age (y) rows
+  for (j = 0; j < 4; j++) {
+    dvColumn[j] = fdCubic1D(dvReduced[0][j], dvReduced[1][j], dvReduced[2][j],
+                            dvReduced[3][j], dx);
+  }
+
+  // Reduce along age (y) to get the final interpolated value
+  return fdCubic1D(dvColumn[0], dvColumn[1], dvColumn[2], dvColumn[3], dy);
+}
+
+/**
+  Helper function for interpolating the Amard grid
+
+  Returns the interpolated value from the Amard mass-age-metallicity
+  grid, using either trilinear (iOrder = 1) or tricubic (iOrder = 3)
+  interpolation. Falls back to trilinear interpolation if the tricubic
+  stencil contains a NaN (e.g. near an edge of the grid where some
+  metallicity tracks may not be populated).
+
+  @param iMLEN Number of mass grid points
+  @param iALEN Number of age grid points
+  @param iZLEN Number of metallicity grid points
+  @param xarr Array of mass grid points
+  @param yarr Array of age grid points
+  @param zarr Array of metallicity grid points
+  @param data The 3D (mass x age x metallicity) data grid
+  @param M Stellar mass, in units matching xarr
+  @param A Stellar age, in units matching yarr
+  @param Z Stellar metallicity, in units matching zarr
+  @param iOrder Interpolation order: 1 = trilinear, 3 = tricubic
+  @param iError Set to a nonzero STELLAR_ERR_* code on failure
+
+  @return The interpolated value
+*/
+double fdAmardInterpolate(
+      int iMLEN, int iALEN, int iZLEN, double const xarr[STELLAR_AMD_MLEN],
+      double const yarr[STELLAR_AMD_ALEN],
+      double const zarr[STELLAR_AMD_ZLEN],
+      double const data[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN],
+      double M, double A, double Z, int iOrder, int *iError) {
+  double dx, dy, dz;
+  int xi, yi, zi;
+  int dxi, dyi, dzi;
   double result = 0;
 
-  // Let's enforce a minimum age of 0.001 GYR
+  // Let's enforce a minimum age of 0.001 GYR, as in fdBaraffeInterpolate.
   // NOTE: This results in a constant luminosity at times earlier than this,
   // which is not realistic. Shouldn't be an issue for most planet evolution
-  // calculations, since planets typically form after this time, but this issue
-  // needs to be revisited eventually.
+  // calculations, since planets typically form after this time, but this
+  // issue needs to be revisited eventually.
   if (A < 0.001) {
     A = 0.001;
   }
@@ -1572,6 +1634,7 @@ double fdAmardInterpolate(int iMLEN, int iALEN, double const xarr[STELLAR_BAR_ML
   *iError = 0;
   xi      = fiGetLowerBound(M, xarr, iMLEN);
   yi      = fiGetLowerBound(A, yarr, iALEN);
+  zi      = fiGetLowerBound(Z, zarr, iZLEN);
 
   if (xi < 0) {
     *iError = xi;
@@ -1579,56 +1642,45 @@ double fdAmardInterpolate(int iMLEN, int iALEN, double const xarr[STELLAR_BAR_ML
   } else if (yi < 0) {
     *iError = yi;
     return 0;
+  } else if (zi < 0) {
+    *iError = zi;
+    return 0;
   }
 
   // Normalized distance to grid points
   dx = (M - xarr[xi]) / (xarr[xi + 1] - xarr[xi]);
   dy = (A - yarr[yi]) / (yarr[yi + 1] - yarr[yi]);
+  dz = (Z - zarr[zi]) / (zarr[zi + 1] - zarr[zi]);
 
   if (iOrder == 1) {
-    result = fdAmardBiLinear(iMLEN, iALEN, data, xi, yi, dx, dy);
+    result =
+          fdAmardTriLinear(iMLEN, iALEN, iZLEN, data, xi, yi, zi, dx, dy, dz);
     if (isnan(result)) {
       *iError = STELLAR_ERR_ISNAN;
       return 0;
     }
     return result;
   } else if (iOrder == 3) {
-    result = fdAmardBiCubic(iMLEN, iALEN, data, xi, yi, dx, dy);
+    result =
+          fdAmardTriCubic(iMLEN, iALEN, iZLEN, data, xi, yi, zi, dx, dy, dz);
     if (isnan(result)) {
-      // Maybe we can still linearly interpolate. Let's check:
-      if (dx == 0) {
+      // Maybe we can still trilinearly interpolate. Let's check that the
+      // 8 corners of the linear cell are all finite:
+      for (dxi = 0; dxi < 2; dxi++) {
         for (dyi = 0; dyi < 2; dyi++) {
-          if (isnan(data[xi][yi + dyi])) {
-            // Hopeless; you're bounded by
-            // a NaN on at least one side
-            *iError = STELLAR_ERR_ISNAN;
-            return 0;
-          }
-        }
-      } else if (dy == 0) {
-        for (dxi = 0; dxi < 2; dxi++) {
-          if (isnan(data[xi + dxi][yi])) {
-            // Hopeless; you're bounded by
-            // a NaN on at least one side
-            *iError = STELLAR_ERR_ISNAN;
-            return 0;
-          }
-        }
-      } else {
-        for (dxi = 0; dxi < 2; dxi++) {
-          for (dyi = 0; dyi < 2; dyi++) {
-            if (isnan(data[xi + dxi][yi + dyi])) {
-              // Hopeless; you're bounded by
-              // a NaN on at least one side
+          for (dzi = 0; dzi < 2; dzi++) {
+            if (isnan(data[xi + dxi][yi + dyi][zi + dzi])) {
+              // Hopeless; you're bounded by a NaN on at least one side
               *iError = STELLAR_ERR_ISNAN;
               return 0;
             }
           }
         }
       }
-      // We're good! A linear interpolation will save the day.
+      // We're good! A trilinear interpolation will save the day.
       *iError = STELLAR_ERR_LINEAR;
-      return fdAmardBiLinear(iMLEN, iALEN, data, xi, yi, dx, dy);
+      return fdAmardTriLinear(iMLEN, iALEN, iZLEN, data, xi, yi, zi, dx, dy,
+                              dz);
     }
     return result;
   } else {
@@ -1638,39 +1690,58 @@ double fdAmardInterpolate(int iMLEN, int iALEN, double const xarr[STELLAR_BAR_ML
 }
 
 /**
-  Returns the stellar T, L, or R by interpolating over the Amard grid
-  using either a bilinear (iOrder = 1) or a bicubic (iOrder = 3) interpolation.
+  Returns the stellar T, L, R, or RG by interpolating over the Amard et al.
+  (2019) grid, which spans mass, age, AND metallicity, using either a
+  trilinear (iOrder = 1) or a tricubic (iOrder = 3) interpolation.
 
-  What are the arguments?
+  @param iParam Which parameter to return (STELLAR_T, STELLAR_L, STELLAR_R,
+         or STELLAR_RG)
+  @param A Stellar age in seconds
+  @param M Stellar mass in kg
+  @param Z Stellar metallicity ([Fe/H])
+  @param iOrder Interpolation order: 1 = trilinear, 3 = tricubic
+  @param iError Set to a nonzero STELLAR_ERR_* code on failure
+
+  @return The interpolated parameter value, in SI units
 */
-double fdAmard(int iParam, double A, double M, int iOrder, int *iError) {
+double fdAmard(int iParam, double A, double M, double Z, int iOrder,
+              int *iError) {
   double res;
 
   if (iParam == STELLAR_T) {
-    res = fdAmardInterpolate(STELLAR_BAR_MLEN, STELLAR_BAR_ALEN,
-                               STELLAR_BAR_MARR, STELLAR_BAR_AARR, DATA_LOGT,
-                               M / MSUN, A / (1.e9 * YEARSEC), iOrder, iError);
+    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
+                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
+                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_LOGT,
+                             M / MSUN, A / (1.e9 * YEARSEC), Z, iOrder,
+                             iError);
     return pow(10., res);
   } else if (iParam == STELLAR_L) {
-    res = fdAmardInterpolate(STELLAR_BAR_MLEN, STELLAR_BAR_ALEN,
-                               STELLAR_BAR_MARR, STELLAR_BAR_AARR, DATA_LOGL,
-                               M / MSUN, A / (1.e9 * YEARSEC), iOrder, iError);
+    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
+                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
+                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_LOGL,
+                             M / MSUN, A / (1.e9 * YEARSEC), Z, iOrder,
+                             iError);
     return LSUN * pow(10., res);
   } else if (iParam == STELLAR_R) {
-    res = fdAmardInterpolate(STELLAR_BAR_MLEN, STELLAR_BAR_ALEN,
-                               STELLAR_BAR_MARR, STELLAR_BAR_AARR, DATA_RADIUS,
-                               M / MSUN, A / (1.e9 * YEARSEC), iOrder, iError);
+    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
+                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
+                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR,
+                             DATA_AMD_RADIUS, M / MSUN, A / (1.e9 * YEARSEC),
+                             Z, iOrder, iError);
     return RSUN * res;
   } else if (iParam == STELLAR_RG) {
-    res = fdAmardInterpolate(STELLAR_BAR_MLEN, STELLAR_BAR_ALEN,
-                               STELLAR_BAR_MARR, STELLAR_BAR_AARR, DATA_RG,
-                               M / MSUN, A / (1.e9 * YEARSEC), iOrder, iError);
+    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
+                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
+                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_RG,
+                             M / MSUN, A / (1.e9 * YEARSEC), Z, iOrder,
+                             iError);
     return res;
   } else {
     *iError = STELLAR_ERR_FILE;
     return 0;
   }
 }
+
 
 
 /** Compute habitable zone limits from Kopparapu et al. (2013). Works with

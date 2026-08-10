@@ -57,6 +57,15 @@
 #define STELLAR_BAR_MLEN 25
 #define STELLAR_BAR_ALEN 502
 
+// Constants/array lens for the Amard model. Unlike Baraffe, the Amard
+// et al. (2019) grid spans mass, age, AND metallicity, so it gets its own
+// dimensions and is interpolated tricubically (see fdAmardTriCubic() in
+// body.c) rather than bicubically.
+// *** PLACEHOLDER SIZES -- replace with the real Amard+19 grid dimensions ***
+#define STELLAR_AMD_MLEN 4
+#define STELLAR_AMD_ALEN 4
+#define STELLAR_AMD_ZLEN 4
+
 /* @cond DOXYGEN_OVERRIDE */
 
 int fiSign(double);
@@ -3761,8 +3770,8 @@ static double const daLopezRadius[MASSLEN][COMPLEN][FLUXLEN][METLEN][TIMELEN] =
 // Baraffe stellar evolution grid
 double fdBaraffe(int, double, double, int, int *);
 
-//Amard stellar evol grid
-double fdAmard(int, double, double, int, int *);
+// Amard stellar evol grid (mass, age, AND metallicity -> tricubic)
+double fdAmard(int, double, double, double, int, int *);
 
 /* @endcond */
 
@@ -12351,3 +12360,144 @@ static double const DATA_RG[STELLAR_BAR_MLEN][STELLAR_BAR_ALEN] = {
       NAN,      NAN,      NAN,      NAN,      NAN,      NAN,      NAN,
       NAN,      NAN,      NAN,      NAN,      NAN,      NAN,      NAN,
       NAN,      NAN,      NAN,      NAN,      NAN,      NAN};
+
+
+// -----------------------------------------------------------------------
+// Amard et al. (2019) stellar evolution grid: mass x age x metallicity.
+//
+// *** PLACEHOLDER SIZES AND DATA -- DO NOT USE FOR SCIENCE AS-IS ***
+//
+// STELLAR_AMD_MLEN/ALEN/ZLEN (declared above) and every array below need
+// to be replaced with the real Amard+19 tracks:
+//   - STELLAR_AMD_MARR: mass grid points, in MSUN
+//   - STELLAR_AMD_AARR: age grid points, in GYR
+//   - STELLAR_AMD_ZARR: metallicity grid points, in [Fe/H]
+//   - DATA_AMD_LOGT:    log10(Teff [K])
+//   - DATA_AMD_LOGL:    log10(L / LSUN)
+//   - DATA_AMD_RADIUS:  R / RSUN
+//   - DATA_AMD_RG:      radius of gyration
+// each indexed [mass][age][metallicity], consistent with the argument
+// order used throughout fdAmard()/fdAmardInterpolate()/fdAmardTriCubic()
+// in body.c.
+//
+// Every entry here is NaN so that, until the real grid is dropped in,
+// fdAmard() will correctly report STELLAR_ERR_ISNAN (see
+// fdAmardInterpolate() in body.c) rather than silently returning
+// made-up values.
+// -----------------------------------------------------------------------
+
+static double const STELLAR_AMD_MARR[STELLAR_AMD_MLEN] = {NAN, NAN, NAN, NAN};
+static double const STELLAR_AMD_AARR[STELLAR_AMD_ALEN] = {NAN, NAN, NAN, NAN};
+static double const STELLAR_AMD_ZARR[STELLAR_AMD_ZLEN] = {NAN, NAN, NAN, NAN};
+
+// *** PLACEHOLDER -- replace with real Amard et al. (2019) data ***
+static double const DATA_AMD_LOGT[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN] = {
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      }
+};
+
+// *** PLACEHOLDER -- replace with real Amard et al. (2019) data ***
+static double const DATA_AMD_LOGL[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN] = {
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      }
+};
+
+// *** PLACEHOLDER -- replace with real Amard et al. (2019) data ***
+static double const DATA_AMD_RADIUS[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN] = {
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      }
+};
+
+// *** PLACEHOLDER -- replace with real Amard et al. (2019) data ***
+static double const DATA_AMD_RG[STELLAR_AMD_MLEN][STELLAR_AMD_ALEN][STELLAR_AMD_ZLEN] = {
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      },
+      {
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN},
+            {NAN, NAN, NAN, NAN}
+      }
+};

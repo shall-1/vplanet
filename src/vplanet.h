@@ -608,6 +608,9 @@ struct BODY {
   int bStellar;
   double dLuminosity;
   double dTemperature;
+  double dMetallicity; /**< Stellar metallicity [Fe/H]; used by the Amard
+                            et al. (2019) grid, which (unlike Baraffe)
+                            spans mass, age, AND metallicity */
   double dSatXUVFrac;
   double dSatXUVTime;
   double dXUVBeta;

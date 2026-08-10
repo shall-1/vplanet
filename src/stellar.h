@@ -153,6 +153,9 @@
 #define OPT_ROTENGLELATEC 1590
 #define OPT_ROTENGLELATED 1591
 
+#define OPT_METALLICITY 1592 /**< Stellar metallicity [Fe/H], used by the
+                                   Amard et al. (2019) grid */
+
 /* Halt Functions */
 #define STELLARHALTSYSEND 5
 #define STELLARHALTBODYEND 5
@@ -186,6 +189,7 @@ void HelpOptionsStellar(OPTIONS *);
 void InitializeOptionsStellar(OPTIONS *, fnReadOption[]);
 void ReadOptionsStellar(BODY *, CONTROL *, FILES *, OPTIONS *, SYSTEM *,
                         fnReadOption[], int);
+void ReadMetallicity(BODY *, CONTROL *, FILES *, OPTIONS *, SYSTEM *, int);
 
 int fbHaltEndBaraffeGrid(BODY *, EVOLVE *, HALT *, IO *, UPDATE *,
                          fnUpdateVariable ***, int);
@@ -255,15 +259,15 @@ void fnForceBehaviorStellar(BODY *, MODULE *, EVOLVE *, IO *, SYSTEM *,
                             UPDATE *, fnUpdateVariable ***fnUpdate, int, int);
 double fdLuminosity(BODY *, SYSTEM *, int *);
 double fdLuminosityFunctionBaraffe(double, double);
-double fdLuminosityFunctionAmard(double, double);
+double fdLuminosityFunctionAmard(double, double, double); // age, mass, metallicity
 double fdLuminosityFunctionProximaCen(double, double);
 double fdLuminosityFunctionSineWave(BODY *, int);
 double fdRadius(BODY *, SYSTEM *, int *);
 double fdRadGyra(BODY *, SYSTEM *, int *);
 double fdRadiusFunctionBaraffe(double, double);
 double fdRadGyraFunctionBaraffe(double, double);
-double fdRadiusFunctionAmard(double, double);
-double fdRadGyraFunctionAmard(double, double);
+double fdRadiusFunctionAmard(double, double, double);  // age, mass, metallicity
+double fdRadGyraFunctionAmard(double, double, double); // age, mass, metallicity
 double fdRadiusFunctionProximaCen(double, double);
 double fdDRotRateDt(BODY *, SYSTEM *, int *);
 double fdDRotRateDtCon(BODY *, SYSTEM *, int *);
@@ -271,7 +275,7 @@ double fdDRotRateDtRadGyra(BODY *, SYSTEM *, int *);
 double fdDRotRateDtMagBrake(BODY *, SYSTEM *, int *);
 double fdTemperature(BODY *, SYSTEM *, int *);
 double fdTemperatureFunctionBaraffe(double, double);
-double fdTemperatureFunctionAmard(double, double);
+double fdTemperatureFunctionAmard(double, double, double); // age, mass, metallicity
 double fdTemperatureFunctionProximaCen(double, double);
 double fdDJDtMagBrakingStellar(BODY *, SYSTEM *, int *);
 double fdDRadiusDtStellar(BODY *, SYSTEM *, int *);

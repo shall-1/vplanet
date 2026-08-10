@@ -19,6 +19,7 @@ void BodyCopyStellar(BODY *dest, BODY *src, int foo, int iNumBodies,
                      int iBody) {
   dest[iBody].dLuminosity          = src[iBody].dLuminosity;
   dest[iBody].dTemperature         = src[iBody].dTemperature;
+  dest[iBody].dMetallicity         = src[iBody].dMetallicity;
   dest[iBody].dSatXUVFrac          = src[iBody].dSatXUVFrac;
   dest[iBody].dSatXUVTime          = src[iBody].dSatXUVTime;
   dest[iBody].dXUVBeta             = src[iBody].dXUVBeta;
@@ -142,6 +143,24 @@ void ReadXUVBeta(BODY *body, CONTROL *control, FILES *files, OPTIONS *options,
     UpdateFoundOption(&files->Infile[iFile], options, lTmp, iFile);
   } else if (iFile > 0) {
     body[iFile - 1].dXUVBeta = options->dDefault;
+  }
+}
+
+void ReadMetallicity(BODY *body, CONTROL *control, FILES *files,
+                     OPTIONS *options, SYSTEM *system, int iFile) {
+  /* This parameter cannot exist in primary file */
+  int lTmp = -1;
+  double dTmp;
+
+  AddOptionDouble(files->Infile[iFile].cIn, options->cName, &dTmp, &lTmp,
+                  control->Io.iVerbose);
+  if (lTmp >= 0) {
+    NotPrimaryInput(iFile, options->cName, files->Infile[iFile].cIn, lTmp,
+                    control->Io.iVerbose);
+    body[iFile - 1].dMetallicity = dTmp;
+    UpdateFoundOption(&files->Infile[iFile], options, lTmp, iFile);
+  } else if (iFile > 0) {
+    body[iFile - 1].dMetallicity = options->dDefault;
   }
 }
 
@@ -1080,6 +1099,22 @@ void InitializeOptionsStellar(OPTIONS *options, fnReadOption fnRead[]) {
   fvFormattedString(&options[OPT_SATXUVTIME].cLongDescr,
                     "The time a star will remain in its \"saturated\" phase.");
 
+  fvFormattedString(&options[OPT_METALLICITY].cName, "dMetallicity");
+  fvFormattedString(&options[OPT_METALLICITY].cDescr,
+                    "Stellar metallicity [Fe/H]");
+  fvFormattedString(&options[OPT_METALLICITY].cDefault, "0.0");
+  fvFormattedString(&options[OPT_METALLICITY].cDimension, "nd");
+  options[OPT_METALLICITY].dDefault   = 0.0;
+  options[OPT_METALLICITY].iType      = 2;
+  options[OPT_METALLICITY].bMultiFile = 1;
+  fnRead[OPT_METALLICITY]             = &ReadMetallicity;
+  fvFormattedString(
+        &options[OPT_METALLICITY].cLongDescr,
+        "The star's metallicity, [Fe/H], relative to Solar (0.0). Currently\n"
+        "only used by the Amard et al. (2019) stellar evolution grid, which\n"
+        "(unlike Baraffe) is tricubically interpolated over mass, age, AND\n"
+        "metallicity. Ignored by other stellar models.");
+
   fvFormattedString(&options[OPT_ROSSBYSAT].cName, "dRossbySat"); //What put in in files
   fvFormattedString(&options[OPT_ROSSBYSAT].cDescr, "Saturated Rossby number for xuv fraction");
   fvFormattedString(&options[OPT_ROSSBYSAT].cDefault, "0.0605");
@@ -1802,7 +1837,8 @@ void VerifyStellarAmard(BODY *body, CONTROL *control, OPTIONS *options,
   NoSineWaveOptions(body, control, options, iBody);
 
   body[iBody].dLuminosity =
-        fdLuminosityFunctionAmard(body[iBody].dAge, body[iBody].dMass);
+        fdLuminosityFunctionAmard(body[iBody].dAge, body[iBody].dMass,
+                                  body[iBody].dMetallicity);
 }
 
 void VerifyStellarProximaCen(BODY *body, CONTROL *control, OPTIONS *options,
@@ -1896,7 +1932,8 @@ void VerifyRadius(BODY *body, CONTROL *control, OPTIONS *options,
 
   } else if (body[iBody].iStellarModel == STELLAR_MODEL_AMARD) {
     body[iBody].dRadius =
-          fdRadiusFunctionAmard(body[iBody].dAge, body[iBody].dMass);
+          fdRadiusFunctionAmard(body[iBody].dAge, body[iBody].dMass,
+                                body[iBody].dMetallicity);
     if (options[OPT_RADIUS].iLine[iBody + 1] >= 0) {
       // User specified radius, but we're reading it from the grid!
       if (control->Io.iVerbose >= VERBINPUT) {
@@ -1952,7 +1989,8 @@ void VerifyRadGyra(BODY *body, CONTROL *control, OPTIONS *options,
       }
     } else if (body[iBody].iStellarModel == STELLAR_MODEL_AMARD) {
       body[iBody].dRadGyra =
-            fdRadGyraFunctionAmard(body[iBody].dAge, body[iBody].dMass);
+            fdRadGyraFunctionAmard(body[iBody].dAge, body[iBody].dMass,
+                                  body[iBody].dMetallicity);
       if (options[OPT_RG].iLine[iBody + 1] >= 0) {
         // User specified radius of gyration, but we're reading it from the
         // grid!
@@ -2017,7 +2055,8 @@ void VerifyTemperature(BODY *body, CONTROL *control, OPTIONS *options,
     }
   } else if (body[iBody].iStellarModel == STELLAR_MODEL_AMARD) {
     body[iBody].dTemperature =
-          fdTemperatureFunctionAmard(body[iBody].dAge, body[iBody].dMass);
+          fdTemperatureFunctionAmard(body[iBody].dAge, body[iBody].dMass,
+                                     body[iBody].dMetallicity);
     if (options[OPT_TEMPERATURE].iLine[iBody + 1] >= 0) {
       // User specified temperature, but we're reading it from the grid!
       if (control->Io.iVerbose >= VERBINPUT) {
@@ -3001,7 +3040,8 @@ double fdLuminosity(BODY *body, SYSTEM *system, int *iaBody) {
     }
   } else if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_AMARD) {
     dLuminosity = fdLuminosityFunctionAmard(body[iaBody[0]].dAge,
-                                              body[iaBody[0]].dMass);
+                                             body[iaBody[0]].dMass,
+                                             body[iaBody[0]].dMetallicity);
     if (!isnan(dLuminosity)) {
       return dLuminosity;
     } else {
@@ -3038,7 +3078,8 @@ double fdRadius(BODY *body, SYSTEM *system, int *iaBody) {
       body[iaBody[0]].iStellarModel = STELLAR_MODEL_CONST;
     }
   } else if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_AMARD) {
-    foo = fdRadiusFunctionAmard(body[iaBody[0]].dAge, body[iaBody[0]].dMass);
+    foo = fdRadiusFunctionAmard(body[iaBody[0]].dAge, body[iaBody[0]].dMass,
+                                body[iaBody[0]].dMetallicity);
     if (!isnan(foo)) {
       return foo;
     } else {
@@ -3074,7 +3115,8 @@ double fdTemperature(BODY *body, SYSTEM *system, int *iaBody) {
     }
   } else if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_AMARD) {
     foo = fdTemperatureFunctionAmard(body[iaBody[0]].dAge,
-                                       body[iaBody[0]].dMass);
+                                      body[iaBody[0]].dMass,
+                                      body[iaBody[0]].dMetallicity);
     if (!isnan(foo)) {
       return foo;
     } else {
@@ -3118,7 +3160,8 @@ double fdRadGyra(BODY *body, SYSTEM *system, int *iaBody) {
     }
     // *SSS* Does Louis' models evolve the Radgya? Check this!! 
   } else if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_AMARD) {
-    foo = fdRadGyraFunctionAmard(body[iaBody[0]].dAge, body[iaBody[0]].dMass);
+    foo = fdRadGyraFunctionAmard(body[iaBody[0]].dAge, body[iaBody[0]].dMass,
+                                 body[iaBody[0]].dMetallicity);
     if (!isnan(foo)) {
       return foo;
     } else {
@@ -3149,18 +3192,19 @@ double fdDRadiusDtStellar(BODY *body, SYSTEM *system, int *iaBody) {
   // like the stellar mass are changing, too! Perhaps it's better to keep track
   // of the previous values of the radius and compute the derivative from those?
   // TODO: Check this.
- //*SSS* also check this for the Amard models!!!!!! 
-  if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE) {
-    return dTINY;
-  }
-  else if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD) {
+ // NOTE: Fixed a pre-existing bug here: the guard/dispatch below used to
+ // test iStellarModel != BARAFFE/AMARD (rather than ==), so neither branch
+ // could ever be reached, and the function fell off the end (no return) for
+ // the Amard case. Now correctly dispatches on ==, and always returns.
+  if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE &&
+      body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD) {
     return dTINY;
   }
   // Delta t = 10 years since 10 yr << typical stellar evolution timescales
   double eps = 10.0 * YEARDAY * DAYSEC;
   double dRadMinus, dRadPlus;
 
-if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE) {
+if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_BARAFFE) {
   dRadMinus = fdRadiusFunctionBaraffe(body[iaBody[0]].dAge - eps,
                                       body[iaBody[0]].dMass);
   dRadPlus  = fdRadiusFunctionBaraffe(body[iaBody[0]].dAge + eps,
@@ -3169,18 +3213,17 @@ if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE) {
 
   return (dRadPlus - dRadMinus) / (2. * eps);
 }
-else if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD) {
-  
+else {
   dRadMinus = fdRadiusFunctionAmard(body[iaBody[0]].dAge - eps,
-                                      body[iaBody[0]].dMass);
+                                     body[iaBody[0]].dMass,
+                                     body[iaBody[0]].dMetallicity);
   dRadPlus  = fdRadiusFunctionAmard(body[iaBody[0]].dAge + eps,
-                                      body[iaBody[0]].dMass);
+                                     body[iaBody[0]].dMass,
+                                     body[iaBody[0]].dMetallicity);
 
 
   return (dRadPlus - dRadMinus) / (2. * eps);
   }
-
-
 }
 
 
@@ -3196,20 +3239,19 @@ double fdDRadGyraDtStellar(BODY *body, SYSTEM *system, int *iaBody) {
   // of the previous values of the radius of gyration and compute the derivative
   // from those? TODO: Check this.
 
-  // If not evolving RG or not using Baraffe+2015 models, ignore RG evolution
-  if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE ||
-      !body[iaBody[0]].bEvolveRG) {
-    return dTINY;
-  }
-  else if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD ||
-      !body[iaBody[0]].bEvolveRG) {
+  // If not evolving RG, or not using a grid-based model, ignore RG evolution.
+  // NOTE: Fixed a pre-existing bug here (same as fdDRadiusDtStellar): the
+  // checks used != instead of ==, so the Amard branch could never trigger.
+  if (!body[iaBody[0]].bEvolveRG ||
+      (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE &&
+       body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD)) {
     return dTINY;
   }
 
   // Delta t = 10 years since  10 yr << typical stellar evolution timescales
   double eps = 10.0 * YEARDAY * DAYSEC;
   double dRGMinus, dRGPlus;
-if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE) {
+if (body[iaBody[0]].iStellarModel == STELLAR_MODEL_BARAFFE) {
   dRGMinus = fdRadGyraFunctionBaraffe(body[iaBody[0]].dAge - eps,
                                       body[iaBody[0]].dMass);
   dRGPlus  = fdRadGyraFunctionBaraffe(body[iaBody[0]].dAge + eps,
@@ -3217,11 +3259,13 @@ if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_BARAFFE) {
 
   return (dRGPlus - dRGMinus) / (2. * eps);
 
-} else if (body[iaBody[0]].iStellarModel != STELLAR_MODEL_AMARD) {
+} else {
   dRGMinus = fdRadGyraFunctionAmard(body[iaBody[0]].dAge - eps,
-                                      body[iaBody[0]].dMass);
+                                     body[iaBody[0]].dMass,
+                                     body[iaBody[0]].dMetallicity);
   dRGPlus  = fdRadGyraFunctionAmard(body[iaBody[0]].dAge + eps,
-                                      body[iaBody[0]].dMass);
+                                     body[iaBody[0]].dMass,
+                                     body[iaBody[0]].dMetallicity);
 
   return (dRGPlus - dRGMinus) / (2. * eps);}
 
@@ -3630,9 +3674,9 @@ double fdTemperatureFunctionBaraffe(double dAge, double dMass) {
 }
 
 //*SSS*/ Double check this, lumin fun of met and rotation too? Pre-computed??
-double fdLuminosityFunctionAmard(double dAge, double dMass) {
+double fdLuminosityFunctionAmard(double dAge, double dMass, double dMetallicity) {
   int iError;
-  double L = fdAmard(STELLAR_L, dAge, dMass, 3, &iError);
+  double L = fdAmard(STELLAR_L, dAge, dMass, dMetallicity, 3, &iError);
   if ((iError == STELLAR_ERR_NONE) || (iError == STELLAR_ERR_LINEAR)) {
     return L;
   } else if (iError == STELLAR_ERR_OUTOFBOUNDS_HI ||
@@ -3657,9 +3701,9 @@ double fdLuminosityFunctionAmard(double dAge, double dMass) {
 }
 
 //**SSS Same with this one */
-double fdRadiusFunctionAmard(double dAge, double dMass) {
+double fdRadiusFunctionAmard(double dAge, double dMass, double dMetallicity) {
   int iError;
-  double R = fdAmard(STELLAR_R, dAge, dMass, 3, &iError);
+  double R = fdAmard(STELLAR_R, dAge, dMass, dMetallicity, 3, &iError);
   if ((iError == STELLAR_ERR_NONE) || (iError == STELLAR_ERR_LINEAR)) {
     return R;
   } else if (iError == STELLAR_ERR_OUTOFBOUNDS_HI ||
@@ -3682,9 +3726,9 @@ double fdRadiusFunctionAmard(double dAge, double dMass) {
   }
 }
 //*SSS and this one 
-double fdRadGyraFunctionAmard(double dAge, double dMass) {
+double fdRadGyraFunctionAmard(double dAge, double dMass, double dMetallicity) {
   int iError;
-  double rg = fdAmard(STELLAR_RG, dAge, dMass, 3, &iError);
+  double rg = fdAmard(STELLAR_RG, dAge, dMass, dMetallicity, 3, &iError);
   if ((iError == STELLAR_ERR_NONE) || (iError == STELLAR_ERR_LINEAR)) {
     return rg;
   } else if (iError == STELLAR_ERR_OUTOFBOUNDS_HI ||
@@ -3709,9 +3753,9 @@ double fdRadGyraFunctionAmard(double dAge, double dMass) {
     exit(EXIT_INT);
   }
 }
-double fdTemperatureFunctionAmard(double dAge, double dMass) {
+double fdTemperatureFunctionAmard(double dAge, double dMass, double dMetallicity) {
   int iError;
-  double T = fdAmard(STELLAR_T, dAge, dMass, 3, &iError);
+  double T = fdAmard(STELLAR_T, dAge, dMass, dMetallicity, 3, &iError);
   if ((iError == STELLAR_ERR_NONE) || (iError == STELLAR_ERR_LINEAR)) {
     return T;
   } else if (iError == STELLAR_ERR_OUTOFBOUNDS_HI ||
