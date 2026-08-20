@@ -1107,6 +1107,7 @@ void InitializeOptionsStellar(OPTIONS *options, fnReadOption fnRead[]) {
   options[OPT_METALLICITY].dDefault   = 0.0;
   options[OPT_METALLICITY].iType      = 2;
   options[OPT_METALLICITY].bMultiFile = 1;
+  options[OPT_METALLICITY].iModuleBit = STELLAR;
   fnRead[OPT_METALLICITY]             = &ReadMetallicity;
   fvFormattedString(
         &options[OPT_METALLICITY].cLongDescr,

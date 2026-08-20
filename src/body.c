@@ -1690,12 +1690,19 @@ double fdAmardInterpolate(
 }
 
 /**
-  Returns the stellar T, L, R, or RG by interpolating over the Amard et al.
-  (2019) grid, which spans mass, age, AND metallicity, using either a
-  trilinear (iOrder = 1) or a tricubic (iOrder = 3) interpolation.
+  Returns the stellar RG by interpolating over the Amard et al. (2019)
+  grid, which spans mass, age, AND metallicity, using either a trilinear
+  (iOrder = 1) or a tricubic (iOrder = 3) interpolation.
+
+  Only STELLAR_RG is currently populated for this grid (radius of
+  gyration, from the non-rotating V00 track set of catalog
+  J/A+A/631/A77): the LOGT/LOGL/RADIUS arrays this function used to also
+  interpolate over were placeholders with no source data behind them and
+  have been removed from body.h. STELLAR_T/STELLAR_L/STELLAR_R requests
+  report STELLAR_ERR_FILE below rather than reading stale/missing data.
 
   @param iParam Which parameter to return (STELLAR_T, STELLAR_L, STELLAR_R,
-         or STELLAR_RG)
+         or STELLAR_RG -- only STELLAR_RG is currently supported)
   @param A Stellar age in seconds
   @param M Stellar mass in kg
   @param Z Stellar metallicity ([Fe/H])
@@ -1708,28 +1715,7 @@ double fdAmard(int iParam, double A, double M, double Z, int iOrder,
               int *iError) {
   double res;
 
-  if (iParam == STELLAR_T) {
-    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
-                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
-                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_LOGT,
-                             M / MSUN, A / (1.e9 * YEARSEC), Z, iOrder,
-                             iError);
-    return pow(10., res);
-  } else if (iParam == STELLAR_L) {
-    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
-                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
-                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_LOGL,
-                             M / MSUN, A / (1.e9 * YEARSEC), Z, iOrder,
-                             iError);
-    return LSUN * pow(10., res);
-  } else if (iParam == STELLAR_R) {
-    res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
-                             STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
-                             STELLAR_AMD_AARR, STELLAR_AMD_ZARR,
-                             DATA_AMD_RADIUS, M / MSUN, A / (1.e9 * YEARSEC),
-                             Z, iOrder, iError);
-    return RSUN * res;
-  } else if (iParam == STELLAR_RG) {
+  if (iParam == STELLAR_RG) {
     res = fdAmardInterpolate(STELLAR_AMD_MLEN, STELLAR_AMD_ALEN,
                              STELLAR_AMD_ZLEN, STELLAR_AMD_MARR,
                              STELLAR_AMD_AARR, STELLAR_AMD_ZARR, DATA_AMD_RG,
@@ -1737,6 +1723,8 @@ double fdAmard(int iParam, double A, double M, double Z, int iOrder,
                              iError);
     return res;
   } else {
+    // STELLAR_T, STELLAR_L, STELLAR_R: no source data provided for these
+    // quantities in the Amard+19 grid currently loaded into body.h.
     *iError = STELLAR_ERR_FILE;
     return 0;
   }
